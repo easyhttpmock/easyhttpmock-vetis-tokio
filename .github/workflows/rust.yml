@@ -1,0 +1,33 @@
+name: Rust
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Cache Rust dependencies
+        uses: kunobi-ninja/kache-action@v1
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Run all tests
+        run: |
+          cargo nextest run

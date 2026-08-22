@@ -1,31 +1,22 @@
-# EasyHttpMock
+# EasyHttpMock Vetis Tokio
 
-[![Crates.io downloads](https://img.shields.io/crates/d/easyhttpmock)](https://crates.io/crates/easyhttpmock) [![crates.io](https://img.shields.io/crates/v/easyhttpmock?style=flat-square)](https://crates.io/crates/easyhttpmock) [![Build Status](https://github.com/ararog/easyhttpmock/actions/workflows/rust.yml/badge.svg?event=push)](https://github.com/ararog/easyhttpmock/actions/workflows/rust.yml) ![Crates.io MSRV](https://img.shields.io/crates/msrv/easyhttpmock) [![Documentation](https://docs.rs/easyhttpmock/badge.svg)](https://docs.rs/easyhttpmock/latest/easyhttpmock) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ararog/easyhttpmock/blob/main/LICENSE.md)  [![codecov](https://codecov.io/gh/ararog/easyhttpmock/graph/badge.svg?token=T0HSBAPVSI)](https://codecov.io/gh/ararog/easyhttpmock)
+[![Crates.io downloads](https://img.shields.io/crates/d/easyhttpmock-vetis-tokio)](https://crates.io/crates/easyhttpmock-vetis-tokio) [![crates.io](https://img.shields.io/crates/v/easyhttpmock-vetis-tokio?style=flat-square)](https://crates.io/crates/easyhttpmock-vetis-tokio) [![Build Status](https://github.com/easyhttpmock/easyhttpmock-vetis-tokio/actions/workflows/rust.yml/badge.svg?event=push)](https://github.com/easyhttpmock/easyhttpmock-vetis-tokio/actions/workflows/rust.yml) ![Crates.io MSRV](https://img.shields.io/crates/msrv/easyhttpmock-vetis-tokio) [![Documentation](https://docs.rs/easyhttpmock-vetis-tokio/badge.svg)](https://docs.rs/easyhttpmock-vetis-tokio/latest/easyhttpmock_vetis_tokio) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/easyhttpmock/easyhttpmock-vetis-tokio/blob/main/LICENSE.md)  [![codecov](https://codecov.io/gh/easyhttpmock/easyhttpmock-vetis-tokio/graph/badge.svg?token=T0HSBAPVSI)](https://codecov.io/gh/easyhttpmock/easyhttpmock-vetis-tokio)
 
-**EasyHttpMock** is a powerful yet simple HTTP mock server designed specifically for testing HTTP clients. Built to work with any web server, it provides a clean, intuitive API for creating realistic mock endpoints that simulate real-world API behavior, making your testing workflow faster and more reliable.
-
-## Why EasyHttpMock?
-
-- **Testing-Focused**: Purpose-built for HTTP client testing scenarios
-- **Lightning Fast**: Powered by VeTiS for optimal performance
-- **Flexible Runtime**: Choose between Tokio or Smol async runtimes
-- **Full Protocol Support**: HTTP/1, HTTP/2, and HTTP/3 compatibility
-- **Secure Testing**: Built-in TLS support for HTTPS endpoint testing
-- **Minimal Dependencies**: Lightweight footprint for your test suite
+This crate provides the core functionality for creating HTTP mock servers using the Tokio runtime.
 
 ## Quick Start
 
-Add EasyHttpMock to your `Cargo.toml`:
+Add EasyHttpMock Vetis Tokio to your `Cargo.toml`:
 
 ```toml
-easyhttpmock = { version = "0.1.1", features = ["tokio-rt", "http1"] }
+easyhttpmock-vetis-tokio = { version = "0.1.0-beta.3", features = ["http1", "rust-tls"] }
 ```
 
 ## Usage Example
 
-Here's how simple it is to create a mock HTTP server for testing:
+Here's how simple it is to create a web server with VeTiS:
 
-```rust
+```rust,no_run
 use easyhttpmock_vetis_tokio::{
     EasyHttpMock,
     config::EasyHttpMockConfig,
@@ -55,45 +46,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     );
 
-    server.register_mock(mock).await?;;
+    server.register_mock(mock).await?;
 
     Ok(())
 }
 ```
-
-## Perfect For
-
-- **Unit Testing**: Mock external APIs in your test suite
-- **Integration Testing**: Test HTTP client behavior without real services
-- **Load Testing**: Simulate API responses under various conditions
-- **Debugging**: Reproduce API issues in a controlled environment
-- **Documentation**: Create interactive API examples
-
-## Supported Runtimes (via crates)
-
-- [tokio](https://github.com/tokio-rs/tokio) - High-performance async runtime
-- [smol](https://github.com/smol-rs/smol) - Lightweight async runtime
-
-## Crate Features
-
-- **http1** - HTTP/1 protocol support
-- **http2** (default) - HTTP/2 protocol support
-- **http3** - HTTP/3 protocol support
-- **rust-tls** (default) - TLS support
-
-## Subprojects
-
-### [easyhttpmock](https://github.com/ararog/easyhttpmock)
-
-Base crate for easyhttpmock.
-
-### [easyhttpmock-vetis-smol](https://github.com/ararog/easyhttpmock-vetis-smol)
-
-Adapter for vetis using smol runtime.
-
-### [easyhttpmock-vetis-tokio](https://github.com/ararog/easyhttpmock-vetis-tokio)
-
-Adapter for vetis using tokio runtime.
 
 ## License
 

@@ -15,9 +15,9 @@ use easyhttpmock::{
 use http::{StatusCode, Version};
 use std::error::Error;
 
-const CA_CERT: &[u8] = include_bytes!("../../../certs/ca.der");
-const SERVER_CERT: &[u8] = include_bytes!("../../../certs/server.der");
-const SERVER_KEY: &[u8] = include_bytes!("../../../certs/server.key.der");
+const CA_CERT: &[u8] = include_bytes!("../../certs/ca.der");
+const SERVER_CERT: &[u8] = include_bytes!("../../certs/server.der");
+const SERVER_KEY: &[u8] = include_bytes!("../../certs/server.key.der");
 
 #[tokio::test]
 async fn test_mock_request() -> Result<(), Box<dyn Error>> {

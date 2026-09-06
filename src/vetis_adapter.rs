@@ -9,9 +9,11 @@ use http::Version;
 use http_body_util::BodyExt;
 use std::{net::IpAddr, sync::Arc};
 use vetis_tokio::{
+    errors::VetisError,
     handler_fn,
-    host::{path::HandlerPath, HostImpl},
-    Response, ServerConfig, Vetis, VetisServer,
+    host::{path::HandlerPath, Host},
+    listener::{build_listeners},
+    ListenerConfig, Response, Vetis, VetisServer,
 };
 
 /// Builder for VetisAdapterConfig
@@ -23,6 +25,7 @@ pub struct VetisAdapterConfigBuilder {
     cert: Option<Vec<u8>>,
     key: Option<Vec<u8>>,
     ca: Option<Vec<u8>>,
+    allow_unsafe_connections: bool,
 }
 
 impl VetisAdapterConfigBuilder {
@@ -110,6 +113,18 @@ impl VetisAdapterConfigBuilder {
         self
     }
 
+    /// Sets the allow_unsafe_connections for the server.
+    ///
+    /// # Arguments
+    /// * `allow_unsafe_connections` - The allow_unsafe_connections to set.
+    ///
+    /// # Returns
+    /// A new `VetisAdapterConfigBuilder` instance with the allow_unsafe_connections set.
+    pub fn allow_unsafe_connections(mut self, allow_unsafe_connections: bool) -> Self {
+        self.allow_unsafe_connections = allow_unsafe_connections;
+        self
+    }    
+
     /// Builds the VetisAdapterConfig from the builder.
     ///
     /// # Returns
@@ -123,6 +138,7 @@ impl VetisAdapterConfigBuilder {
             cert: self.cert,
             key: self.key,
             ca: self.ca,
+            allow_unsafe_connections: self.allow_unsafe_connections,
         }
     }
 }
@@ -137,6 +153,7 @@ pub struct VetisAdapterConfig {
     cert: Option<Vec<u8>>,
     key: Option<Vec<u8>>,
     ca: Option<Vec<u8>>,
+    allow_unsafe_connections: bool,
 }
 
 impl Default for VetisAdapterConfig {
@@ -160,6 +177,7 @@ impl Default for VetisAdapterConfig {
             cert: None,
             key: None,
             ca: None,
+            allow_unsafe_connections: false,
         }
     }
 }
@@ -185,6 +203,7 @@ impl VetisAdapterConfig {
             cert: None,
             key: None,
             ca: None,
+            allow_unsafe_connections: false,
         }
     }
 
@@ -202,6 +221,22 @@ impl VetisAdapterConfig {
     /// The interface of the server.
     pub fn interface(&self) -> &IpAddr {
         &self.interface
+    }
+
+    /// Indicates if a unsafe connection is allowed.
+    ///
+    /// # Returns
+    /// True if unsafe connection is allowed, false otherwise.
+    pub fn allow_unsafe_connections(&self) -> bool {
+        self.allow_unsafe_connections
+    }
+
+    /// Returns server supported protocols.
+    ///
+    /// # Returns
+    /// A vector of supported protocols.
+    pub fn protos(&self) -> &Vec<Version> {
+        &self.protos
     }
 
     /// Returns the port of the server.
@@ -237,25 +272,10 @@ impl VetisAdapterConfig {
     }
 }
 
-impl From<VetisAdapterConfig> for ServerConfig {
-    fn from(config: VetisAdapterConfig) -> Self {
-        let listener_config = vetis_tokio::ListenerConfig::builder()
-            .interface(config.interface)
-            .protos(config.protos)
-            .port(config.port)
-            .build()
-            .expect("Failed to build listener config");
-        ServerConfig::builder()
-            .add_listener(listener_config)
-            .build()
-            .expect("Failed to build server config")
-    }
-}
-
 #[derive(Default)]
 /// Vetis adapter implementation
 pub struct VetisAdapter {
-    server: Vetis,
+    server: Option<Vetis>,
     config: VetisAdapterConfig,
     mock: Option<Arc<Mock>>,
 }
@@ -279,13 +299,7 @@ impl ServerAdapter for VetisAdapter {
     /// # Returns
     /// A new `VetisAdapter` instance.
     fn new(config: Self::Config) -> Result<Self, EasyHttpMockError> {
-        let vetis_config = config
-            .clone()
-            .into();
-
-        let server = Vetis::new(vetis_config);
-
-        Ok(Self { server, config, mock: None })
+        Ok(Self { server: None, config, mock: None })
     }
 
     /// Returns the hostname of the server.
@@ -374,9 +388,7 @@ impl ServerAdapter for VetisAdapter {
 
                     let mut data = Vec::<u8>::new();
                     let Ok(body_data) = body.collect().await else {
-                        return Err(vetis_tokio::errors::VetisError::Handler(
-                            "Failed to collect body".to_string(),
-                        ));
+                        return Err(VetisError::Handler("Failed to collect body".to_string()));
                     };
 
                     data.extend_from_slice(&body_data.to_bytes());
@@ -396,9 +408,7 @@ impl ServerAdapter for VetisAdapter {
                             .status(respond.status_code())
                             .bytes(&respond.body()))
                     } else {
-                        Err(vetis_tokio::errors::VetisError::Handler(
-                            "Missing respond mock".to_string(),
-                        ))
+                        Err(VetisError::Handler("Missing respond mock".to_string()))
                     }
                 }
             }))
@@ -406,7 +416,14 @@ impl ServerAdapter for VetisAdapter {
 
         let hostname = self.hostname();
 
-        let host_config = vetis_tokio::HostConfig::builder().hostname(&hostname);
+        let host_config = vetis_tokio::HostConfig::builder()
+            .hostname(&hostname)
+            .bind_addresses(vec![(
+                *self
+                    .config
+                    .interface(),
+                self.config.port(),
+            )]);
 
         let host_config = if let Some(((cert, key), ca)) = self
             .config
@@ -438,21 +455,47 @@ impl ServerAdapter for VetisAdapter {
             .build()
             .map_err(|e| EasyHttpMockError::Server(ServerError::Creation(e.to_string())))?;
 
-        let mut host = HostImpl::new(host_config);
+        let mut host = Host::new(host_config);
         if let Err(e) = path {
             return Err(EasyHttpMockError::Server(ServerError::Creation(e.to_string())));
         }
 
+        let listener = ListenerConfig::builder()
+            .interface(
+                *self
+                    .config
+                    .interface(),
+            )
+            .port(self.config.port())
+            .protos(
+                self.config
+                    .protos()
+                    .clone(),
+            )
+            .allow_unsafe_connections(
+                self.config
+                    .allow_unsafe_connections(),
+            )
+            .build()
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
+
         host.add_path(path.unwrap());
 
-        self.server
+        let mut server = Vetis::builder()
+            .add_listeners(build_listeners(listener))
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?
             .add_host(host)
-            .await;
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?
+            .build();
 
-        self.server
+        server
             .start()
             .await
-            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
+
+        self.server = Some(server);
+
+        Ok(())
     }
 
     /// Stops the server.
@@ -460,7 +503,13 @@ impl ServerAdapter for VetisAdapter {
     /// # Returns
     /// A result indicating whether the server stopped successfully.
     async fn stop(&mut self) -> HttpMockResult<()> {
-        self.server
+        let Some(server) = &mut self.server else {
+            return Err(EasyHttpMockError::Server(ServerError::Stop(
+                "Server not running".to_string(),
+            )));
+        };
+
+        server
             .stop()
             .await
             .map_err(|e| EasyHttpMockError::Server(ServerError::Stop(e.to_string())))

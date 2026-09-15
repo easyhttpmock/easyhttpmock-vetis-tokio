@@ -13,7 +13,7 @@ use easyhttpmock::{
     config::EasyHttpMockConfig,
     matchers::{method, path},
     mock::{given, AsyncMatcherExt, Mock, StatusCodeExt},
-    server::{PortGenerator, ServerAdapter},
+    server::ServerAdapter,
     EasyHttpMock,
 };
 use http::{StatusCode, Version};
@@ -30,9 +30,12 @@ async fn test_mock_request() -> Result<(), Box<dyn Error>> {
 
     let vetis_adapter_config = VetisAdapterConfig::builder()
         .hostname("localhost")
-        .interface("0.0.0.0".parse().unwrap())
+        .interface(
+            "0.0.0.0"
+                .parse()
+                .unwrap(),
+        )
         .protos(vec![Version::HTTP_2])
-        .with_random_port()
         .cert(server_cert.to_vec())
         .key(server_key.to_vec())
         .ca(CA_CERT.to_vec())
@@ -76,7 +79,9 @@ async fn test_mock_request() -> Result<(), Box<dyn Error>> {
         .certificate(DeboaCertificate::from_slice(CA_CERT, ContentEncoding::DER))
         .build();
 
-    let request = get(server.url("/test"))?.build()?;
+    let url = server.url("/test");
+    let request = get(url)?
+        .build()?;
     let response = client
         .execute(request)
         .await?;
@@ -95,7 +100,6 @@ async fn test_unsafe() -> Result<(), Box<dyn Error>> {
     let vetis_adapter_config = VetisAdapterConfig::builder()
         .protos(vec![Version::HTTP_2])
         .allow_unsafe_connections(true)
-        .with_random_port()
         .build();
 
     let config = EasyHttpMockConfig::<VetisAdapter>::builder()
@@ -107,7 +111,12 @@ async fn test_unsafe() -> Result<(), Box<dyn Error>> {
     };
 
     expect(server.base_url()).to(contains("http://"));
-    expect(server.config().interface()).to_be(eq(&std::net::IpAddr::V4(Ipv4Addr::UNSPECIFIED)));
+    expect(
+        server
+            .config()
+            .interface(),
+    )
+    .to_be(eq(&std::net::IpAddr::V4(Ipv4Addr::UNSPECIFIED)));
 
     Mock::of(
         given(path("/test").and(method("GET"))).will_return(
@@ -129,7 +138,7 @@ async fn test_unsafe() -> Result<(), Box<dyn Error>> {
         .execute(request)
         .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
+    expect(response.status()).to_be(eq(StatusCode::OK));
 
     server
         .stop()

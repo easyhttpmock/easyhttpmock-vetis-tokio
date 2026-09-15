@@ -2,7 +2,7 @@ use caramelo::expect;
 use easyhttpmock::{
     errors::{EasyHttpMockError, MockError, ServerError},
     mock::{Mock, Request},
-    server::{generate_randon_port, PortGenerator, ServerAdapter},
+    server::ServerAdapter,
     HttpMockResult,
 };
 use http::Version;
@@ -12,8 +12,8 @@ use vetis_tokio::{
     errors::VetisError,
     handler_fn,
     host::{path::HandlerPath, Host},
-    listener::{build_listeners},
-    ListenerConfig, Response, Vetis, VetisServer,
+    listener::build_listeners,
+    ListenerConfig, Response, Vetis, VetisListener as _, VetisServer,
 };
 
 /// Builder for VetisAdapterConfig
@@ -32,9 +32,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the hostname for the server.
     ///
     /// # Arguments
+    ///
     /// * `hostname` - The hostname to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the hostname set.
     pub fn hostname(mut self, hostname: &str) -> Self {
         self.hostname = hostname.to_string();
@@ -44,9 +46,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the interface for the server.
     ///
     /// # Arguments
+    ///
     /// * `interface` - The interface to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the interface set.
     pub fn interface(mut self, interface: IpAddr) -> Self {
         self.interface = interface;
@@ -56,9 +60,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the protocol for the server.
     ///
     /// # Arguments
+    ///
     /// * `protos` - The protocol version to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the protocol version set.
     pub fn protos(mut self, protos: Vec<Version>) -> Self {
         self.protos = protos;
@@ -68,9 +74,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the port for the server.
     ///
     /// # Arguments
+    ///
     /// * `port` - The port to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the port set.
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
@@ -80,9 +88,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the certificate for the server.
     ///
     /// # Arguments
+    ///
     /// * `cert` - The certificate to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the certificate set.
     pub fn cert(mut self, cert: Vec<u8>) -> Self {
         self.cert = Some(cert);
@@ -92,9 +102,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the key for the server.
     ///
     /// # Arguments
+    ///
     /// * `key` - The key to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the key set.
     pub fn key(mut self, key: Vec<u8>) -> Self {
         self.key = Some(key);
@@ -104,9 +116,11 @@ impl VetisAdapterConfigBuilder {
     /// Sets the CA certificate for the server.
     ///
     /// # Arguments
+    ///
     /// * `ca` - The CA certificate to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the CA certificate set.
     pub fn ca(mut self, ca: Vec<u8>) -> Self {
         self.ca = Some(ca);
@@ -116,18 +130,21 @@ impl VetisAdapterConfigBuilder {
     /// Sets the allow_unsafe_connections for the server.
     ///
     /// # Arguments
+    ///
     /// * `allow_unsafe_connections` - The allow_unsafe_connections to set.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance with the allow_unsafe_connections set.
     pub fn allow_unsafe_connections(mut self, allow_unsafe_connections: bool) -> Self {
         self.allow_unsafe_connections = allow_unsafe_connections;
         self
-    }    
+    }
 
     /// Builds the VetisAdapterConfig from the builder.
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfig` instance.
     pub fn build(self) -> VetisAdapterConfig {
         VetisAdapterConfig {
@@ -160,11 +177,13 @@ impl Default for VetisAdapterConfig {
     /// Creates a default configuration for the Vetis adapter.
     ///
     /// This function sets up a basic server configuration with:
+    ///
     /// - Interface: "0.0.0.0"
     /// - Port: random port between 9000 and 65535
     /// - No TLS certificates (HTTP only)
     ///
     /// # Returns
+    ///
     /// A default `VetisAdapterConfig` instance.
     fn default() -> Self {
         Self {
@@ -173,7 +192,7 @@ impl Default for VetisAdapterConfig {
                 .parse()
                 .unwrap(),
             protos: vec![Version::HTTP_11],
-            port: generate_randon_port(),
+            port: 0,
             cert: None,
             key: None,
             ca: None,
@@ -186,11 +205,13 @@ impl VetisAdapterConfig {
     /// Creates a new builder for the Vetis adapter configuration.
     ///
     /// This function sets up a basic server configuration with:
+    ///
     /// - Interface: "0.0.0.0"
     /// - Port: random port between 9000 and 65535
     /// - No TLS certificates (HTTP only)
     ///
     /// # Returns
+    ///
     /// A new `VetisAdapterConfigBuilder` instance.
     pub fn builder() -> VetisAdapterConfigBuilder {
         VetisAdapterConfigBuilder {
@@ -199,7 +220,7 @@ impl VetisAdapterConfig {
                 .parse()
                 .unwrap(),
             protos: vec![Version::HTTP_11],
-            port: generate_randon_port(),
+            port: 0,
             cert: None,
             key: None,
             ca: None,
@@ -207,18 +228,20 @@ impl VetisAdapterConfig {
         }
     }
 
-    /// Returns the hostname of the server.
+    /// Returns server hostname.
     ///
     /// # Returns
-    /// The hostname of the server.
+    ///
+    /// The server hostname.
     pub fn hostname(&self) -> &String {
         &self.hostname
     }
 
-    /// Returns the interface of the server.
+    /// Returns server network interface.
     ///
     /// # Returns
-    /// The interface of the server.
+    ///
+    /// The server network interface.
     pub fn interface(&self) -> &IpAddr {
         &self.interface
     }
@@ -226,6 +249,7 @@ impl VetisAdapterConfig {
     /// Indicates if a unsafe connection is allowed.
     ///
     /// # Returns
+    ///
     /// True if unsafe connection is allowed, false otherwise.
     pub fn allow_unsafe_connections(&self) -> bool {
         self.allow_unsafe_connections
@@ -234,15 +258,17 @@ impl VetisAdapterConfig {
     /// Returns server supported protocols.
     ///
     /// # Returns
+    ///
     /// A vector of supported protocols.
     pub fn protos(&self) -> &Vec<Version> {
         &self.protos
     }
 
-    /// Returns the port of the server.
+    /// Returns server port.
     ///
     /// # Returns
-    /// The port of the server.
+    ///
+    /// The port server port.
     pub fn port(&self) -> u16 {
         self.port
     }
@@ -250,23 +276,23 @@ impl VetisAdapterConfig {
     /// Returns the certificate of the server.
     ///
     /// # Returns
-    /// The certificate of the server.
+    /// The server certificate.
     pub fn cert(&self) -> &Option<Vec<u8>> {
         &self.cert
     }
 
-    /// Returns the key of the server.
+    /// Returns server key.
     ///
     /// # Returns
-    /// The key of the server.
+    /// The server key.
     pub fn key(&self) -> &Option<Vec<u8>> {
         &self.key
     }
 
-    /// Returns the CA certificate of the server.
+    /// Returns server CA certificate.
     ///
     /// # Returns
-    /// The CA certificate of the server.
+    /// The server CA certificate.
     pub fn ca(&self) -> &Option<Vec<u8>> {
         &self.ca
     }
@@ -278,13 +304,6 @@ pub struct VetisAdapter {
     server: Option<Vetis>,
     config: VetisAdapterConfig,
     mock: Option<Arc<Mock>>,
-}
-
-impl PortGenerator<VetisAdapter> for VetisAdapterConfigBuilder {
-    fn with_random_port(self) -> Self {
-        let port = rand::random_range(9000..65535);
-        self.port(port)
-    }
 }
 
 impl ServerAdapter for VetisAdapter {
@@ -393,7 +412,7 @@ impl ServerAdapter for VetisAdapter {
 
                     data.extend_from_slice(&body_data.to_bytes());
 
-                    expect(Request::from_parts(parts)).to_match(
+                    expect(Request::from_parts(parts, data.into())).to_match(
                         mock.request()
                             .matcher()
                             .clone(),
@@ -405,7 +424,7 @@ impl ServerAdapter for VetisAdapter {
 
                     if let Some(respond) = respond {
                         Ok(Response::builder()
-                            .status(respond.status_code())
+                            .status(*respond.status_code())
                             .bytes(&respond.body()))
                     } else {
                         Err(VetisError::Handler("Missing respond mock".to_string()))
@@ -414,8 +433,39 @@ impl ServerAdapter for VetisAdapter {
             }))
             .build();
 
-        let hostname = self.hostname();
+        let listener_config = ListenerConfig::builder()
+            .interface(
+                *self
+                    .config
+                    .interface(),
+            )
+            .port(self.config.port())
+            .protos(
+                self.config
+                    .protos()
+                    .clone(),
+            )
+            .allow_unsafe_connections(
+                self.config
+                    .allow_unsafe_connections(),
+            )
+            .build()
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
 
+        let mut listeners = build_listeners(listener_config);
+        if let Some(first_listener) = listeners.first_mut() {
+            first_listener
+                .reserve_port()
+                .await
+                .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
+
+            self.config_mut()
+                .port = first_listener
+                .config()
+                .port();
+        };
+
+        let hostname = self.hostname();
         let host_config = vetis_tokio::HostConfig::builder()
             .hostname(&hostname)
             .bind_addresses(vec![(
@@ -459,30 +509,10 @@ impl ServerAdapter for VetisAdapter {
         if let Err(e) = path {
             return Err(EasyHttpMockError::Server(ServerError::Creation(e.to_string())));
         }
-
-        let listener = ListenerConfig::builder()
-            .interface(
-                *self
-                    .config
-                    .interface(),
-            )
-            .port(self.config.port())
-            .protos(
-                self.config
-                    .protos()
-                    .clone(),
-            )
-            .allow_unsafe_connections(
-                self.config
-                    .allow_unsafe_connections(),
-            )
-            .build()
-            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
-
         host.add_path(path.unwrap());
 
         let mut server = Vetis::builder()
-            .add_listeners(build_listeners(listener))
+            .add_listeners(listeners)
             .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?
             .add_host(host)
             .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?

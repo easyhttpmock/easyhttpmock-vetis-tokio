@@ -80,8 +80,7 @@ async fn test_mock_request() -> Result<(), Box<dyn Error>> {
         .build();
 
     let url = server.url("/test");
-    let request = get(url)?
-        .build()?;
+    let request = get(url)?.build()?;
     let response = client
         .execute(request)
         .await?;

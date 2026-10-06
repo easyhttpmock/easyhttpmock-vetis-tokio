@@ -3,6 +3,6 @@
 /// Vetis tokio adapter module
 pub mod vetis_adapter;
 pub use easyhttpmock::*;
-pub use vetis_tokio::handler_fn;
+pub use vetis_tokio::host::path::handler_fn;
 #[cfg(test)]
 mod tests;

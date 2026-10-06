@@ -9,7 +9,7 @@ This crate provides the core functionality for creating HTTP mock servers using 
 Add EasyHttpMock Vetis Tokio to your `Cargo.toml`:
 
 ```toml
-easyhttpmock-vetis-tokio = { version = "0.1.0-beta.3", features = ["http1", "rust-tls"] }
+easyhttpmock-vetis-tokio = { version = "0.1.2", features = ["rust-tls"] }
 ```
 
 ## Usage Example

@@ -10,10 +10,11 @@ use http_body_util::BodyExt;
 use std::{net::IpAddr, sync::Arc};
 use vetis_tokio::{
     errors::VetisError,
-    handler_fn,
-    host::{path::HandlerPath, Host},
-    listener::build_listeners,
-    ListenerConfig, Response, Vetis, VetisListener as _, VetisServer,
+    host::{
+        path::{handler_fn, HandlerPath},
+        Host,
+    },
+    Response, Tls, Vetis, VetisListener, VetisServer,
 };
 
 /// Builder for VetisAdapterConfig
@@ -337,16 +338,26 @@ impl ServerAdapter for VetisAdapter {
     /// The base URL of the server.
     fn base_url(&self) -> String {
         let hostname = self.hostname();
-
-        if self
+        let scheme = if self
             .config
             .cert
             .is_some()
         {
-            format!("https://{}:{}", hostname, self.config.port())
+            "https"
         } else {
-            format!("http://{}:{}", hostname, self.config.port())
-        }
+            "http"
+        };
+
+        // Always pick the port assigned to first listener
+        let port = if let Some(server) = &self.server {
+            server.listeners()[0]
+                .config()
+                .port()
+        } else {
+            60000
+        };
+
+        format!("{scheme}://{}:{}", hostname, port)
     }
 
     /// Returns the configuration of the server.
@@ -398,7 +409,7 @@ impl ServerAdapter for VetisAdapter {
         let mock_clone = mock.clone();
         let path = HandlerPath::builder()
             .uri("/")
-            .handler(handler_fn(move |request| {
+            .handler(handler_fn(move |request, _context| {
                 // Since handler function is defined here, we need to clone the mocker
                 // to move it into the async block
                 let mock = mock_clone.clone();
@@ -431,17 +442,15 @@ impl ServerAdapter for VetisAdapter {
                     }
                 }
             }))
-            .build();
+            .build()
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Creation(e.to_string())))?;
 
-        let listener_config = ListenerConfig::builder()
-            .interface(
-                *self
-                    .config
-                    .interface(),
-            )
-            .port(self.config.port())
+        let hostname = self.hostname();
+        let host_config = vetis_tokio::HostConfig::builder()
+            .hostname(&hostname)
             .protos(
-                self.config
+                &self
+                    .config
                     .protos()
                     .clone(),
             )
@@ -449,33 +458,22 @@ impl ServerAdapter for VetisAdapter {
                 self.config
                     .allow_unsafe_connections(),
             )
-            .build()
-            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
-
-        let mut listeners = build_listeners(listener_config);
-        if let Some(first_listener) = listeners.first_mut() {
-            first_listener
-                .reserve_port()
-                .await
-                .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?;
-
-            self.config_mut()
-                .port = first_listener
-                .config()
-                .port();
-        };
-
-        let hostname = self.hostname();
-        let host_config = vetis_tokio::HostConfig::builder()
-            .hostname(&hostname)
-            .bind_addresses(vec![(
+            .bind_addresses(&[(
                 *self
                     .config
                     .interface(),
-                self.config.port(),
-            )]);
+                0,
+            )])
+            .build()
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Creation(e.to_string())))?;
 
-        let host_config = if let Some(((cert, key), ca)) = self
+        let mut host = Host::new(host_config)
+            .await
+            .map_err(|e| EasyHttpMockError::Server(ServerError::Creation(e.to_string())))?;
+
+        host.add_path(path);
+
+        if let Some(((cert, key), ca)) = self
             .config
             .cert
             .as_ref()
@@ -488,33 +486,14 @@ impl ServerAdapter for VetisAdapter {
                 self.config
                     .ca
                     .as_ref(),
-            ) {
-            host_config.security(
-                vetis_tokio::SecurityConfig::builder()
-                    .cert_from_bytes(cert.clone())
-                    .key_from_bytes(key.clone())
-                    .ca_cert_from_bytes(ca.clone())
-                    .build()
-                    .map_err(|e| EasyHttpMockError::Server(ServerError::Config(e.to_string())))?,
             )
-        } else {
-            host_config
-        };
-
-        let host_config = host_config
-            .build()
-            .map_err(|e| EasyHttpMockError::Server(ServerError::Creation(e.to_string())))?;
-
-        let mut host = Host::new(host_config);
-        if let Err(e) = path {
-            return Err(EasyHttpMockError::Server(ServerError::Creation(e.to_string())));
+        {
+            host.add_tls(Tls::from_cert_and_key(cert, key).with_ca(ca));
         }
-        host.add_path(path.unwrap());
 
         let mut server = Vetis::builder()
-            .add_listeners(listeners)
-            .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?
             .add_host(host)
+            .await
             .map_err(|e| EasyHttpMockError::Server(ServerError::Start(e.to_string())))?
             .build();
 
@@ -533,7 +512,7 @@ impl ServerAdapter for VetisAdapter {
     /// # Returns
     /// A result indicating whether the server stopped successfully.
     async fn stop(&mut self) -> HttpMockResult<()> {
-        let Some(server) = &mut self.server else {
+        let Some(server) = self.server.take() else {
             return Err(EasyHttpMockError::Server(ServerError::Stop(
                 "Server not running".to_string(),
             )));

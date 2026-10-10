@@ -38,7 +38,11 @@ http = "1.5.0"
 http-body-util = "0.1.5"
 rand = { version = "0.10.2", default-features = false }
 tokio = { version = "1.53.1", default-features = false }
-vetis-tokio = { git = "https://github.com/vetis-server/vetis-tokio.git" }
+vetis-tokio = { git = "https://github.com/vetis-server/vetis-tokio.git", features = [
+  "http2",
+  #"http3",
+  "rust-tls",
+], default-features = false }
 # vetis-tokio = { path = "../vetis-tokio", features = [
 #   "http2",
 #   #"http3",
@@ -54,7 +58,13 @@ vetis-tokio = { git = "https://github.com/vetis-server/vetis-tokio.git" }
 deboa = { git = "https://github.com/deboa-client/deboa.git" }
 #deboa = { path = "../deboa/deboa" }
 #deboa = { version = "0.1.5-beta.2" }
-deboa-tokio = { git = "https://github.com/deboa-client/deboa-tokio.git" }
+deboa-tokio = { git = "https://github.com/deboa-client/deboa-tokio.git", default-features = false, features = [
+  "http2",
+  #"http3",
+  "rust-tls",
+  "default-rustls-provider",
+  "default-rustls-verifier",
+] }
 # deboa-tokio = { path = "../deboa-tokio/deboa-tokio", default-features = false, features = [
 #   "http2",
 #   #"http3",

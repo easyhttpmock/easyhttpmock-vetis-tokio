@@ -68,6 +68,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-stream"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -252,10 +274,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "deboa-tls"
-version = "0.1.0-beta.4"
+name = "deboa-multipart"
+version = "0.1.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7888362295e39f4965bcbb863e864d6b9e21501ae4851477bcc65df048a82910"
+checksum = "94bb25918cc515041a757e0a05acafaeef298d48ea6a84b634e4ab75b6f94c2e"
+dependencies = [
+ "async-lock",
+ "async-stream",
+ "base64",
+ "bytes",
+ "deboa",
+ "futures",
+ "http-body",
+ "http-body-util",
+ "rand",
+]
+
+[[package]]
+name = "deboa-tls"
+version = "0.1.0-beta.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f71cee433cac4b3f44ef063fdf8fd6f55fc179ff7d2ddf3bb1ad7fd6c93f406"
 dependencies = [
  "deboa",
  "futures-io",
@@ -268,11 +307,12 @@ dependencies = [
 
 [[package]]
 name = "deboa-tokio"
-version = "0.1.4-beta.7"
+version = "0.1.4-beta.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec6455cbecf9c2703fc93d74018eaa5ff34cb4fadcea570d7a83aa28322568bc"
+checksum = "91280d592ed64f6e8ab53461fe7cf8e667d1b1e4307faedc68f83c0c89bf506e"
 dependencies = [
  "deboa",
+ "deboa-multipart",
  "deboa-tls",
  "hashbrown 0.17.1",
  "http",
